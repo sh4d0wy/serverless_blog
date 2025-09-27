@@ -3,6 +3,7 @@ import { withAccelerate } from "@prisma/extension-accelerate";
 import { Hono } from "hono";
 import { hashPassword, verifyPassword } from "../../utils/hashPass";
 import { sign } from "hono/jwt";
+import { signupInput } from "@skbhugra/blog_common";
 
 export const userRouter = new Hono<{
     Bindings:{
@@ -16,7 +17,15 @@ userRouter.post('/signup', async (c) => {
         datasourceUrl: c.env?.DATABASE_URL,
     }).$extends(withAccelerate());
     
-    const data = await c.req.json();
+    const rawData = await c.req.json();
+    const {success,data} = signupInput.safeParse(rawData);
+    if(!success){
+        c.status(403);
+        return c.json({
+            error: 'Invalid input',
+            data
+        });
+    }
     try {
         const userExists = await prisma.user?.findUnique({
             where: {
@@ -64,14 +73,22 @@ userRouter.post('/signin', async (c) => {
     }).$extends(withAccelerate());
 
     const data = await c.req.json();
+    const {success,data:parsedData} = signupInput.safeParse(data);
+    if(!success){
+        c.status(403);
+        return c.json({
+            error: 'Invalid input',
+            data:parsedData
+        });
+    }
     const userExists = await prisma.user?.findUnique({
         where: {
-            email: data.email,
+            email: parsedData.email,
         },
         select: { id: true, email: true, password: true },
     });
     if (userExists) {
-        const isPasswordValid = await verifyPassword(data.password, c.env?.SALT, userExists.password);
+        const isPasswordValid = await verifyPassword(parsedData.password, c.env?.SALT, userExists.password);
         if (!isPasswordValid) {
             c.status(403);
             return c.json({
