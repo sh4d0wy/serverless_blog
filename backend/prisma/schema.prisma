@@ -12,20 +12,20 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
-model USER{
+model User{
   id String @id @default(uuid())
   email String @unique
   name String?
   password String
-  posts POSTS[]
+  posts Posts[]
 }
 
-model POSTS{
+model Posts{
   id String @id @default(uuid())
   title String
   description String
   content String
   published Boolean @default(false)
-  author USER @relation(fields:[authorId],references:[id])
+  author User @relation(fields:[authorId],references:[id])
   authorId String
 }

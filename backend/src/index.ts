@@ -1,10 +1,12 @@
 import { Hono } from 'hono'
 import {PrismaClient} from "@prisma/client/edge"
 import {withAccelerate} from "@prisma/extension-accelerate"
+import {hashPassword,verifyPassword} from '../utils/hashPass'
 
 const app = new Hono<{
   Bindings:{
-    DATABASE_URL:string
+    DATABASE_URL:string,
+    SALT:string
   }
 }>()
 
@@ -13,14 +15,22 @@ app.post('/api/v1/user/signup', async (c) => {
     datasourceUrl:c.env?.DATABASE_URL
   }).$extends(withAccelerate())
 
-  const data = c.req.json();
-  await prisma.user.create({
-    data
-  })
-  return c.json({
-    msg:'Created User',
-    user:data
-  })
+  const data = await c.req.json();
+  try{
+    const passHash = await hashPassword(data.password,"Skbhugra")
+    const user = await prisma.user?.create({
+      data:{
+        email:data.email,
+        password:passHash,
+      }
+    })
+    
+    c.status(200);
+    return c.json("Done")
+  }catch(e){
+    c.status(500)
+    return c.json("Error")
+  }
 })
 
 app.post('/api/v1/user/signin', (c) => {
